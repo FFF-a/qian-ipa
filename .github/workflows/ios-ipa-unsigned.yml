@@ -52,34 +52,45 @@ jobs:
           LC_ALL: en_US.UTF-8
         run: npx pod-install
 
-      - name: Xcode archive without signing
+      - name: Build unsigned iOS app
+        id: ios_build
         run: |
           set -euo pipefail
           cd ios
           WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' | head -1)
           SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "import json,sys;d=json.load(sys.stdin);s=[x for x in d['workspace']['schemes'] if 'test' not in x.lower()];print(s[0])")
-          echo "Using workspace=$WORKSPACE scheme=$SCHEME"
+          DERIVED="$RUNNER_TEMP/DerivedData"
+          echo "workspace=$WORKSPACE scheme=$SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
             -configuration Release \
             -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            archive \
+            -derivedDataPath "$DERIVED" \
+            build \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             AD_HOC_CODE_SIGNING_ALLOWED=NO
+          APP_PATH=$(find "$DERIVED/Build/Products" -type d -name '*.app' | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app under DerivedData, listing:"
+            find "$DERIVED" -maxdepth 6
+            exit 1
+          fi
+          echo "Found app bundle: $APP_PATH"
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Package IPA
         run: |
           set -euo pipefail
-          APP_PATH=$(find "$RUNNER_TEMP/App.xcarchive/Products/Applications" -name '*.app' | head -1)
+          APP_PATH="${{ steps.ios_build.outputs.app_path }}"
           APP_NAME=$(basename "$APP_PATH")
           mkdir -p Payload
           cp -r "$APP_PATH" "Payload/$APP_NAME"
           zip -qr office-manage-unsigned.ipa Payload
           ls -lh office-manage-unsigned.ipa
+          unzip -l office-manage-unsigned.ipa | head -20
 
       - uses: actions/upload-artifact@v4
         with:
