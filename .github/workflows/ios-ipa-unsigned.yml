@@ -45,14 +45,15 @@ jobs:
         run: npx pod-install
 
       - name: Build and package IPA
+        env:
+          DERIVED: ${{ runner.temp }}/DerivedData
         run: |
           set -e
           cd ios
-          WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' | head -1)
+          WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' -print -quit)
           SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "import json,sys;d=json.load(sys.stdin);s=[x for x in d['workspace']['schemes'] if 'test' not in x.lower()];print(s[0])")
-          DERIVED="$RUNNER_TEMP/DerivedData"
           rm -rf "$DERIVED"
-          echo "workspace=$WORKSPACE scheme=$SCHEME"
+          echo "workspace=$WORKSPACE scheme=$SCHEME derived=$DERIVED"
 
           xcodebuild \
             -workspace "$WORKSPACE" \
@@ -61,24 +62,32 @@ jobs:
             -sdk iphoneos \
             -derivedDataPath "$DERIVED" \
             build \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=YES \
             CODE_SIGNING_REQUIRED=NO \
-            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="-" \
+            EXPANDED_CODE_SIGN_IDENTITY="-" \
+            DEVELOPMENT_TEAM="" \
             ONLY_ACTIVE_ARCH=NO
 
-          echo "Searching for .app in DerivedData..."
-          find "$DERIVED/Build/Products" -maxdepth 3 -type d || true
-
-          APP_PATH=$(find "$DERIVED/Build/Products" -type d -name '*.app' | head -1)
-          if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find "$DERIVED" -type d -name '*.app' | head -1)
-          fi
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: no .app found under $DERIVED"
-            find "$DERIVED" -maxdepth 8 | head -300
-            exit 1
-          fi
+          APP_PATH=$(python3 <<'PY'
+          import glob, os, sys
+          derived = os.environ["DERIVED"]
+          products = os.path.join(derived, "Build", "Products")
+          if os.path.isdir(products):
+              print("Products listing:", *os.listdir(products), sep="\n  ")
+          patterns = [
+              os.path.join(products, "Release-iphoneos", "*.app"),
+              os.path.join(products, "*iphoneos", "*.app"),
+              os.path.join(products, "*", "*.app"),
+          ]
+          for pat in patterns:
+              for path in sorted(glob.glob(pat)):
+                  if os.path.isdir(path):
+                      print(path)
+                      sys.exit(0)
+          sys.exit(1)
+          PY
+          )
 
           echo "Using app: $APP_PATH"
           cd "$GITHUB_WORKSPACE"
