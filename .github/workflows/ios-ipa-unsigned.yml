@@ -9,13 +9,14 @@ on:
 
 env:
   CI: true
-  DERIVED: ${{ runner.temp }}/DerivedData
-  ARCHIVE: ${{ runner.temp }}/App.xcarchive
 
 jobs:
   build-unsigned-ipa:
     runs-on: macos-latest
     timeout-minutes: 90
+    env:
+      DERIVED: ${{ runner.temp }}/DerivedData
+      ARCHIVE: ${{ runner.temp }}/App.xcarchive
     steps:
       - name: Download source (public repo tarball)
         run: |
