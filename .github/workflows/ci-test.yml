@@ -3,11 +3,12 @@ name: CI Test
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Download source
+        run: |
+          curl -fsSL "https://codeload.github.com/${{ github.repository }}/tar.gz/master" -o src.tar.gz
+          tar xzf src.tar.gz --strip-components=1
       - run: echo "Actions is enabled"

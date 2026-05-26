@@ -7,19 +7,19 @@ on:
       - master
       - main
 
-permissions:
-  contents: read
-  actions: write
-
 jobs:
   build-unsigned-ipa:
     runs-on: macos-14
     timeout-minutes: 60
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Download source (public repo tarball)
+        run: |
+          set -euo pipefail
+          BRANCH="${GITHUB_REF_NAME:-master}"
+          echo "Downloading branch: $BRANCH"
+          curl -fsSL "https://codeload.github.com/${{ github.repository }}/tar.gz/${BRANCH}" -o src.tar.gz
+          tar xzf src.tar.gz --strip-components=1
+          ls -la
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
