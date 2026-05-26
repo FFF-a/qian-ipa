@@ -14,9 +14,6 @@ jobs:
   build-unsigned-ipa:
     runs-on: macos-latest
     timeout-minutes: 90
-    env:
-      DERIVED: ${{ runner.temp }}/DerivedData
-      ARCHIVE: ${{ runner.temp }}/App.xcarchive
     steps:
       - name: Download source (public repo tarball)
         run: |
@@ -42,6 +39,9 @@ jobs:
         run: npx expo prebuild --platform ios --clean
 
       - name: Build and package IPA
+        env:
+          DERIVED: ${{ runner.temp }}/DerivedData
+          ARCHIVE: ${{ runner.temp }}/App.xcarchive
         run: bash scripts/build-ios-ipa-ci.sh
 
       - uses: actions/upload-artifact@v4
