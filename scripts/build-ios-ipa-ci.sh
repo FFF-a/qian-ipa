@@ -88,21 +88,75 @@ fi
 cd "$GITHUB_WORKSPACE"
 
 echo "==> Locate .app bundle"
-APP_PATH=$(python3 <<PY
-import glob, os, sys
+APP_PATH=$(python3 <<'PY'
+import glob
+import os
+import plistlib
+import sys
 
 derived = os.environ["DERIVED"]
 archive = os.environ["ARCHIVE"]
-roots = [derived, archive]
+target_bundle = "com.office.manage"
+
+skip_parts = (
+    "/pods/",
+    "/uninstalledproducts/",
+    "/intermediatebuildfilespath/",
+    "/pods.build/",
+    "/watchkit",
+)
+
+def bundle_id(app_path: str):
+    plist_path = os.path.join(app_path, "Info.plist")
+    if not os.path.isfile(plist_path):
+        return None
+    try:
+        with open(plist_path, "rb") as fh:
+            data = plistlib.load(fh)
+        return data.get("CFBundleIdentifier")
+    except Exception:
+        return None
+
+def score(path: str) -> tuple:
+    prefer = 0
+    lower = path.lower()
+    bid = bundle_id(path) or ""
+    name = os.path.basename(path)
+
+    if bid == target_bundle:
+        prefer -= 1000
+    elif "office" in name.lower():
+        prefer -= 200
+    if "/products/applications/" in lower:
+        prefer -= 100
+    if "installationbuildproductslocation/applications/" in lower:
+        prefer -= 100
+    if "release-iphoneos" in lower:
+        prefer -= 50
+    if "debug-iphoneos" in lower:
+        prefer -= 25
+    if "iphoneos" in lower:
+        prefer -= 10
+    if any(part in lower for part in skip_parts):
+        prefer += 500
+    if "simulator" in lower or "iphonesimulator" in lower:
+        prefer += 1000
+    if name.startswith("EX") or name.startswith("React"):
+        prefer += 300
+    return (prefer, len(path), path)
+
+roots = [archive, derived]
 patterns = [
+    "Products/Applications/*.app",
     "Build/Products/Release-iphoneos/*.app",
     "Build/Products/Debug-iphoneos/*.app",
     "Build/Products/*iphoneos/*.app",
     "Build/Products/*/*.app",
-    "Products/Applications/*.app",
+    "Build/Intermediates.noindex/ArchiveIntermediates/*/BuildProductsPath/*/*.app",
+    "Build/Intermediates.noindex/ArchiveIntermediates/*/InstallationBuildProductsLocation/Applications/*.app",
 ]
 
-seen = set()
+seen: set[str] = set()
 for root in roots:
     if not os.path.isdir(root):
         continue
@@ -111,27 +165,75 @@ for root in roots:
             if os.path.isdir(path) and path.endswith(".app"):
                 seen.add(path)
 
+    for dirpath, dirnames, filenames in os.walk(root):
+        lower = dirpath.lower()
+        if any(part in lower for part in skip_parts):
+            dirnames[:] = []
+            continue
+        for dirname in dirnames:
+            if dirname.endswith(".app"):
+                seen.add(os.path.join(dirpath, dirname))
+
 if not seen:
+    print("DEBUG archive tree:", file=sys.stderr)
+    if os.path.isdir(archive):
+        for dirpath, dirnames, filenames in os.walk(archive):
+            depth = dirpath[len(archive):].count(os.sep)
+            if depth > 4:
+                dirnames[:] = []
+                continue
+            print(" ", dirpath, dirnames[:10], file=sys.stderr)
     products = os.path.join(derived, "Build", "Products")
     if os.path.isdir(products):
-        print("Products dirs:", os.listdir(products), file=sys.stderr)
+        print("DEBUG derived products:", os.listdir(products), file=sys.stderr)
     sys.exit(1)
 
-def score(path: str) -> tuple:
-    prefer = 0
-    if "Release-iphoneos" in path:
-        prefer -= 10
-    if "Debug-iphoneos" in path:
-        prefer -= 5
-    if "iphoneos" in path:
-        prefer -= 3
-    if "Simulator" in path or "iphonesimulator" in path:
-        prefer += 100
-    return (prefer, path)
-
-print(sorted(seen, key=score)[0])
+best = sorted(seen, key=score)[0]
+print(f"DEBUG candidates ({len(seen)}):", *sorted(seen)[:8], sep="\n  ", file=sys.stderr)
+print(best)
 PY
 )
+
+if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+  echo "ERROR: .app not found after archive, trying plain build"
+  cd ios
+  rm -rf "$DERIVED"
+  for CONFIG in Release Debug; do
+    if xcodebuild \
+      -configuration "$CONFIG" \
+      build \
+      "${COMMON_FLAGS[@]}"; then
+      break
+    fi
+  done
+  cd "$GITHUB_WORKSPACE"
+  APP_PATH=$(python3 <<'PY'
+import glob, os, sys
+derived = os.environ["DERIVED"]
+patterns = [
+    "Build/Products/Release-iphoneos/*.app",
+    "Build/Products/Debug-iphoneos/*.app",
+    "Build/Products/*iphoneos/*.app",
+]
+for pat in patterns:
+    for path in sorted(glob.glob(os.path.join(derived, pat))):
+        if os.path.isdir(path) and "Office" in os.path.basename(path):
+            print(path)
+            sys.exit(0)
+for pat in patterns:
+    for path in sorted(glob.glob(os.path.join(derived, pat))):
+        if os.path.isdir(path):
+            print(path)
+            sys.exit(0)
+sys.exit(1)
+PY
+  )
+fi
+
+if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+  echo "ERROR: No .app bundle found"
+  exit 1
+fi
 
 echo "Using app: $APP_PATH"
 mkdir -p Payload
