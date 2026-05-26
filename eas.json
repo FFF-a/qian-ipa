@@ -9,8 +9,18 @@
       "android": {
         "buildType": "apk"
       },
+      "ios": {
+        "simulator": false
+      },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://172.20.10.10:5000"
+        "EXPO_PUBLIC_API_URL": "http://118.31.109.161"
+      }
+    },
+    "preview-ios": {
+      "extends": "preview",
+      "ios": {
+        "simulator": false,
+        "buildConfiguration": "Release"
       }
     },
     "production": {
@@ -18,7 +28,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://172.20.10.10:5000"
+        "EXPO_PUBLIC_API_URL": "http://118.31.109.161"
       }
     }
   }

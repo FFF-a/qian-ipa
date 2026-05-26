@@ -11,7 +11,7 @@ export function setUnauthorizedHandler(handler) {
 
 const client = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -33,7 +33,7 @@ function normalizeError(error, body, status) {
     if (msg.includes("Network Error") || msg.includes("ERR_CONNECTION")) {
       return {
         code: 0,
-        message: `无法连接后端（${API_BASE_URL}），请确认已运行 python run.py`,
+        message: `无法连接服务器（${API_BASE_URL}），请检查手机网络或浏览器打开 ${API_BASE_URL}/health 测试`,
         data: null,
       };
     }

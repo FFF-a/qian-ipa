@@ -1,4 +1,5 @@
 @echo off
+setlocal EnableDelayedExpansion
 chcp 65001 >nul
 title Office Manage - 一键打包 APK
 cd /d "%~dp0"
@@ -12,8 +13,9 @@ echo  说明：全程在本窗口完成，不要关闭黑窗口。
 echo.
 
 echo  [1/5] 检查是否已登录 Expo...
-call npx eas-cli whoami 2>nul
-if errorlevel 1 (
+call npx eas-cli whoami > expo-login-status.txt 2>&1
+findstr /i /c:"Not logged in" expo-login-status.txt >nul
+if !errorlevel! equ 0 (
     echo.
     echo  >> 还没登录，马上会打开浏览器。
     echo  >> 请在网页里点「Authorize / 授权」，然后回到这里。
@@ -46,11 +48,14 @@ if not exist "app.json" (
 )
 echo.
 
-echo  [4/5] 开始云端打包 APK，大约 10~20 分钟...
+echo  [4/5] 开始云端打包 APK（云端排队，通常 15~40 分钟）...
 echo.
 echo  --------------------------------------------
-echo  下面会出现一个 https://expo.dev/... 链接
-echo  用浏览器打开可看进度，完成后点 Download 下载 APK
+echo  下面会出现 https://expo.dev/... 链接，用浏览器看进度
+echo  完成后点 Download 下载 APK，发给安卓手机安装
+echo  API 已指向阿里云：http://118.31.109.161 （80端口，手机4G可用）
+echo  别人手机有网（4G/WiFi 都行），不用和你电脑同一 WiFi
+echo  若超过 40 分钟日志不往下走：网页点 Cancel，改天再双击本文件
 echo  --------------------------------------------
 echo.
 echo  若提示 Generate keystore / Create project：直接按回车用默认即可
@@ -65,12 +70,14 @@ if errorlevel 1 (
 )
 
 echo.
-echo  [5/5] 全部完成！
+echo  [5/5] 已提交云端打包！
 echo.
-echo  下载 APK：浏览器打开 https://expo.dev  - 登录 - Builds - Download
-echo  装到手机前：电脑先运行后端  python run.py
-echo  手机和电脑要连同一个 WiFi
+echo  下载 APK：浏览器 https://expo.dev  - 登录 - Builds - Download
+echo  装到任意安卓手机，有网即可使用（连阿里云服务器）
 echo  登录账号：admin  /  admin123
+echo  浏览器也可访问：http://118.31.109.161/office/
+echo  测试：http://118.31.109.161/health 应显示 ok
 echo.
 start https://expo.dev
 pause
+endlocal

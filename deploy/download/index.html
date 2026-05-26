@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <meta name="format-detection" content="telephone=no" />
+  <title>Office Manage - 安卓下载</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 16px;
+      padding-bottom: 32px;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: #fff;
+      border-radius: 14px;
+      padding: 20px 18px;
+      margin-bottom: 14px;
+    }
+    .header h1 { font-size: 1.25rem; margin-bottom: 6px; }
+    .header p { font-size: 0.9rem; opacity: 0.92; line-height: 1.5; }
+    .wechat-tip {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      font-size: 0.9rem;
+      line-height: 1.65;
+      color: #9a3412;
+    }
+    .wechat-tip strong { color: #c2410c; }
+    .steps {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .steps h2 { font-size: 1rem; margin-bottom: 12px; color: #1e3a8a; }
+    .step {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    .step:last-child { margin-bottom: 0; }
+    .num {
+      flex-shrink: 0;
+      width: 26px;
+      height: 26px;
+      background: #1e3a8a;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .step b { color: #1e3a8a; }
+    .actions { margin-bottom: 14px; }
+    .btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      padding: 16px 20px;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #16a34a;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+    }
+    .btn-secondary {
+      background: #fff;
+      color: #1e3a8a;
+      border: 2px solid #1e3a8a;
+    }
+    .btn-copy {
+      background: #e2e8f0;
+      color: #334155;
+      font-size: 0.95rem;
+    }
+    .info {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 0.85rem;
+      color: #64748b;
+      line-height: 1.6;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .info li { margin: 4px 0 4px 18px; }
+    .toast {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 99;
+    }
+    .toast.show { display: block; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Office Manage 安卓安装包</h1>
+    <p>办公管理系统 · 版本 1.0.2 · 约 60MB</p>
+  </div>
+
+  <div class="wechat-tip" id="wechatTip">
+    <strong>微信用户请看：</strong>若刚扫码出现「IP地址」提示，请先点
+    <strong>【继续访问】</strong>，再按下面步骤下载。
+  </div>
+
+  <div class="steps">
+    <h2>下载步骤（微信扫码推荐）</h2>
+    <div class="step">
+      <span class="num">1</span>
+      <span>出现「将要访问 / IP地址」时，点 <b>继续访问</b></span>
+    </div>
+    <div class="step">
+      <span class="num">2</span>
+      <span>点下方绿色按钮 <b>立即下载安装包</b></span>
+    </div>
+    <div class="step">
+      <span class="num">3</span>
+      <span>若未开始下载：点右上角 <b>···</b> → 选 <b>在浏览器中打开</b>（或 Safari / Chrome）→ 再点一次绿色按钮</span>
+    </div>
+    <div class="step">
+      <span class="num">4</span>
+      <span>下载完成后安装，登录 <b>admin</b> / <b>admin123</b>（安装时允许「未知来源」）</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <a class="btn btn-primary" id="downloadBtn" href="#" download="office-manage-1.0.2.apk">
+      立即下载安装包（APK）
+    </a>
+    <a class="btn btn-secondary" id="browserBtn" href="#">
+      在浏览器中打开下载链接
+    </a>
+    <button type="button" class="btn btn-copy" id="copyBtn">复制下载链接</button>
+  </div>
+
+  <ul class="info">
+    <li>仅支持 <strong>安卓</strong> 手机；iPhone 请访问网页版：<a href="/office/">/office/</a></li>
+    <li>需能访问互联网（连接阿里云服务器）</li>
+  </ul>
+
+  <div class="toast" id="toast">链接已复制，请到浏览器粘贴打开</div>
+
+  <script>
+    var apkUrl = location.origin + "/download/office-manage-1.0.2.apk";
+    var isWeChat = /MicroMessenger/i.test(navigator.userAgent);
+
+    document.getElementById("downloadBtn").href = apkUrl;
+    document.getElementById("browserBtn").href = apkUrl;
+    document.getElementById("browserBtn").setAttribute("target", "_blank");
+
+    document.getElementById("copyBtn").onclick = function () {
+      var text = apkUrl;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showToast).catch(fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+    };
+
+    function fallbackCopy() {
+      var input = document.createElement("input");
+      input.value = apkUrl;
+      document.body.appendChild(input);
+      input.select();
+      try {
+        document.execCommand("copy");
+        showToast();
+      } catch (e) {
+        alert("请手动复制：\n" + apkUrl);
+      }
+      document.body.removeChild(input);
+    }
+
+    function showToast() {
+      var t = document.getElementById("toast");
+      t.classList.add("show");
+      setTimeout(function () { t.classList.remove("show"); }, 2500);
+    }
+
+    if (!isWeChat) {
+      document.getElementById("wechatTip").style.display = "none";
+    }
+  </script>
+</body>
+</html>

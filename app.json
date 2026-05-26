@@ -2,7 +2,7 @@
   "expo": {
     "name": "Office Manage",
     "slug": "office-mobile",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
@@ -11,12 +11,23 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.office.manage"
+      "bundleIdentifier": "com.office.manage",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSExceptionDomains": {
+            "118.31.109.161": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSIncludesSubdomains": true
+            }
+          }
+        }
+      }
     },
     "android": {
       "package": "com.office.manage",
-      "versionCode": 1,
-      "usesCleartextTraffic": true,
+      "versionCode": 4,
       "adaptiveIcon": {
         "backgroundColor": "#1E3A8A"
       },
@@ -24,8 +35,18 @@
         "INTERNET"
       ]
     },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
     "plugins": [
-      "expo-asset"
-    ]
+      "expo-asset",
+      "./plugins/withNetworkSecurityConfig.js"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d9ea56b3-ecce-49d5-9d5c-7a3daf6637d6"
+      }
+    }
   }
 }

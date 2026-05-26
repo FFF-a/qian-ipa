@@ -1,0 +1,105 @@
+# 在 GitHub macOS _runner 上打出「未签名」IPA，供爱思助手等工具用个人 Apple ID 重签安装
+# 无需 EXPO_TOKEN、无需 $99 开发者账号
+name: Build iOS IPA (unsigned)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-unsigned-ipa:
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Create .env for API URL
+        run: |
+          API_URL="${EXPO_PUBLIC_API_URL:-http://118.31.109.161}"
+          echo "EXPO_PUBLIC_API_URL=$API_URL" > .env
+          cat .env
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Archive (no code signing)
+        id: archive
+        run: |
+          set -euo pipefail
+          cd ios
+          WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' | head -1)
+          if [ -z "$WORKSPACE" ]; then
+            echo "No .xcworkspace found under ios/"
+            exit 1
+          fi
+          SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          schemes = data.get('workspace', {}).get('schemes', [])
+          schemes = [s for s in schemes if 'test' not in s.lower()]
+          if not schemes:
+              raise SystemExit('No scheme found')
+          print(schemes[0])
+          ")
+          echo "workspace=$WORKSPACE scheme=$SCHEME"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          APP_PATH=$(find "$RUNNER_TEMP/App.xcarchive/Products/Applications" -name '*.app' | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app in archive"
+            find "$RUNNER_TEMP/App.xcarchive" -maxdepth 5
+            exit 1
+          fi
+          APP_NAME=$(basename "$APP_PATH")
+          mkdir -p Payload
+          cp -r "$APP_PATH" "Payload/$APP_NAME"
+          zip -qr office-manage-unsigned.ipa Payload
+          ls -lh office-manage-unsigned.ipa
+          echo "Bundled: $APP_NAME"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: office-manage-unsigned-ipa
+          path: office-manage-unsigned.ipa
+          retention-days: 30
+          if-no-files-found: error

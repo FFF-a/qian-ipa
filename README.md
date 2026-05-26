@@ -21,11 +21,26 @@
 ## 启动
 
 ```powershell
-cd c:\Users\JD\Desktop\office_mobile
+cd office_mobile
 npm install
 copy .env.example .env
 npm start
 ```
+
+**Expo SDK 54**（兼容 iPhone 最新版 Expo Go）。确保 `.env`：
+
+```env
+EXPO_PUBLIC_API_URL=http://118.31.109.161
+```
+
+### iPhone Expo Go 演示
+
+1. App Store 安装 **Expo Go**
+2. 电脑 `npm start`（同一 WiFi 用 `npx expo start --lan`）
+3. 扫码，或 Expo Go 手动输入 `exp://电脑局域网IP:8081`
+4. 登录 `admin` / `admin123`
+
+> SDK 52 与新版 Expo Go 不兼容；已升级到 SDK 54。
 
 确保后端已运行：`python run.py`（office_backend 目录）
 
