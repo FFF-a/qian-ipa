@@ -9,6 +9,8 @@ on:
 
 env:
   CI: true
+  DERIVED: ${{ runner.temp }}/DerivedData
+  ARCHIVE: ${{ runner.temp }}/App.xcarchive
 
 jobs:
   build-unsigned-ipa:
@@ -38,63 +40,8 @@ jobs:
       - name: Expo prebuild iOS
         run: npx expo prebuild --platform ios --clean
 
-      - name: Install CocoaPods
-        env:
-          LANG: en_US.UTF-8
-          LC_ALL: en_US.UTF-8
-        run: npx pod-install
-
       - name: Build and package IPA
-        env:
-          DERIVED: ${{ runner.temp }}/DerivedData
-        run: |
-          set -e
-          cd ios
-          WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' -print -quit)
-          SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "import json,sys;d=json.load(sys.stdin);s=[x for x in d['workspace']['schemes'] if 'test' not in x.lower()];print(s[0])")
-          rm -rf "$DERIVED"
-          echo "workspace=$WORKSPACE scheme=$SCHEME derived=$DERIVED"
-
-          xcodebuild \
-            -workspace "$WORKSPACE" \
-            -scheme "$SCHEME" \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath "$DERIVED" \
-            build \
-            CODE_SIGNING_ALLOWED=YES \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="-" \
-            EXPANDED_CODE_SIGN_IDENTITY="-" \
-            DEVELOPMENT_TEAM="" \
-            ONLY_ACTIVE_ARCH=NO
-
-          APP_PATH=$(python3 <<'PY'
-          import glob, os, sys
-          derived = os.environ["DERIVED"]
-          products = os.path.join(derived, "Build", "Products")
-          if os.path.isdir(products):
-              print("Products listing:", *os.listdir(products), sep="\n  ")
-          patterns = [
-              os.path.join(products, "Release-iphoneos", "*.app"),
-              os.path.join(products, "*iphoneos", "*.app"),
-              os.path.join(products, "*", "*.app"),
-          ]
-          for pat in patterns:
-              for path in sorted(glob.glob(pat)):
-                  if os.path.isdir(path):
-                      print(path)
-                      sys.exit(0)
-          sys.exit(1)
-          PY
-          )
-
-          echo "Using app: $APP_PATH"
-          cd "$GITHUB_WORKSPACE"
-          mkdir -p Payload
-          cp -r "$APP_PATH" "Payload/$(basename "$APP_PATH")"
-          zip -qr office-manage-unsigned.ipa Payload
-          ls -lh office-manage-unsigned.ipa
+        run: bash scripts/build-ios-ipa-ci.sh
 
       - uses: actions/upload-artifact@v4
         with:
