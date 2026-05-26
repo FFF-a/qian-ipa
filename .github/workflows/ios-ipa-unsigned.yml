@@ -7,10 +7,13 @@ on:
       - master
       - main
 
+env:
+  CI: true
+
 jobs:
   build-unsigned-ipa:
-    runs-on: macos-14
-    timeout-minutes: 60
+    runs-on: macos-latest
+    timeout-minutes: 90
     steps:
       - name: Download source (public repo tarball)
         run: |
@@ -27,9 +30,7 @@ jobs:
           node-version: "20"
 
       - name: Create env file
-        run: |
-          API_URL="${EXPO_PUBLIC_API_URL:-http://118.31.109.161}"
-          echo "EXPO_PUBLIC_API_URL=$API_URL" > .env
+        run: echo "EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL:-http://118.31.109.161}" > .env
         env:
           EXPO_PUBLIC_API_URL: ${{ secrets.EXPO_PUBLIC_API_URL }}
 
@@ -37,12 +38,19 @@ jobs:
         run: npm ci
 
       - name: Expo prebuild iOS
-        run: npx expo prebuild --platform ios --clean --no-install
+        run: npx expo prebuild --platform ios --clean
 
-      - name: Pod install
+      - name: Verify iOS folder
         run: |
-          cd ios
-          pod install --repo-update
+          test -d ios
+          ls -la ios
+          test -f ios/Podfile
+
+      - name: Install CocoaPods
+        env:
+          LANG: en_US.UTF-8
+          LC_ALL: en_US.UTF-8
+        run: npx pod-install
 
       - name: Xcode archive without signing
         run: |
@@ -50,6 +58,7 @@ jobs:
           cd ios
           WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' | head -1)
           SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "import json,sys;d=json.load(sys.stdin);s=[x for x in d['workspace']['schemes'] if 'test' not in x.lower()];print(s[0])")
+          echo "Using workspace=$WORKSPACE scheme=$SCHEME"
           xcodebuild \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
