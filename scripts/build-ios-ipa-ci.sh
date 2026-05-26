@@ -35,7 +35,31 @@ sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = "";/g' "$PBXPROJ" || t
 sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' "$PBXPROJ" || true
 
 WORKSPACE=$(find . -maxdepth 1 -name '*.xcworkspace' -print -quit)
-SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "import json,sys;d=json.load(sys.stdin);s=[x for x in d['workspace']['schemes'] if 'test' not in x.lower()];print(s[0])")
+SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+schemes = data.get('workspace', {}).get('schemes', [])
+blocked_prefixes = ('ex', 'react', 'rct', 'hermes', 'yoga', 'fb', 'pods')
+
+def score(name: str) -> tuple:
+    lower = name.lower()
+    if 'test' in lower:
+        return (1000, name)
+    prefer = 0
+    if 'office' in lower or 'manage' in lower:
+        prefer -= 100
+    if lower in ('officemanage', 'office-mobile', 'officemobile'):
+        prefer -= 50
+    if lower.startswith(blocked_prefixes):
+        prefer += 200
+    if lower.startswith('pod'):
+        prefer += 200
+    return (prefer, name)
+
+if not schemes:
+    sys.exit('No schemes found in workspace')
+print(sorted(schemes, key=score)[0])
+")
 echo "workspace=$WORKSPACE scheme=$SCHEME"
 
 rm -rf "$DERIVED" "$ARCHIVE"
@@ -55,28 +79,31 @@ COMMON_FLAGS=(
 
 build_ok=0
 for CONFIG in Release Debug; do
-  echo "==> xcodebuild archive configuration=$CONFIG"
+  echo "==> xcodebuild build configuration=$CONFIG"
   if xcodebuild \
     -configuration "$CONFIG" \
-    -archivePath "$ARCHIVE" \
-    archive \
+    -sdk iphoneos \
+    build \
     "${COMMON_FLAGS[@]}"; then
     build_ok=1
     break
   fi
-  echo "archive failed for $CONFIG, trying next..."
+  echo "build failed for $CONFIG, trying next..."
 done
 
 if [ "$build_ok" -ne 1 ]; then
-  echo "==> archive failed, trying plain build"
+  echo "==> build failed, trying archive"
   for CONFIG in Release Debug; do
+    echo "==> xcodebuild archive configuration=$CONFIG"
     if xcodebuild \
       -configuration "$CONFIG" \
-      build \
+      -archivePath "$ARCHIVE" \
+      archive \
       "${COMMON_FLAGS[@]}"; then
       build_ok=1
       break
     fi
+    echo "archive failed for $CONFIG, trying next..."
   done
 fi
 
